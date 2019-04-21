@@ -1,16 +1,10 @@
-#################
-# Framework for Graph CNN with Cheb expansion. 
-# Implemented in PyTorch, support various data encoding
-# Document: https://arxiv.org/abs/1901.06758
-# Last update: 2018/01/01 
-#################
-
-
 import torch
 import torch.nn as nn
+
 import numpy as np
 import networkx as nx
 import pickle
+
 from collections import OrderedDict
 from callbacks import EarlyStopping
 
@@ -118,7 +112,7 @@ class VD_embedding(nn.Module):
     self.L = L # L matrix
     self.K = K # number of order for cheb approx
     self.F = F # number of output filter
-    self.C = C # number of Cheb
+    # self.C = C # number of Cheb
     self.O = O # num of Cov process
     for i in range(O):
       self.L = torch.matmul(self.L, L)
@@ -273,7 +267,7 @@ def train(train_set, test_set, V, after_config, nl, batch_size = 32, num_epoch =
     for name, embedding in model.embedding_dict.iteritems():
       model.embedding_dict[name] = embedding.cuda()
 
-  optimizer = torch.optim.Adam(model.get_all_parameters(), lr = learning_rate)
+  optimizer = torch.optim.Adam(model.get_all_parameters(), lr = learning_rate, weight_decay = 1e-4)
   loss_fn = torch.nn.MSELoss()
 
   if verbose: 
@@ -437,3 +431,78 @@ class normalizers():
     return tmp_X
 
 
+
+
+
+# #
+# class parking_prediction(nn.Module):
+#   def __init__(self, V, data_config, after_config):
+#     super(parking_prediction, self).__init__()
+#     self.data_config = data_config
+#     self.V = V
+#     self.embedding_dict = OrderedDict()
+#     self.init_embedding()
+#     self.build_aftermodel(after_config)
+#     self.init_parameters()
+
+#   def init_embedding(self):
+#     self.total_output = 0
+#     for config in self.data_config:
+#       if config['type'] == 'D':
+#         self.embedding_dict[config['name']] = D_embedding(config['D'], config['num_hidden'], config['num_output'])
+#       if config['type'] == 'TD':
+#         self.embedding_dict[config['name']] = TD_embedding(config['T'], config['D'], config['num_layer'],  config['num_output'])
+#       if config['type'] == 'VD':
+#         self.embedding_dict[config['name']] = VD_embedding(config['V'], config['D'], config['L'], config['F'], config['num_output'])
+#       if config['type'] == 'VTD':
+#         self.embedding_dict[config['name']] = VTD_embedding(config['T'], config['num_layer'], config['V'], 
+#                                                                 config['D'], config['L'], config['F'], 
+#                                                                 config['num_output'], config['num_hidden'])
+#       self.total_output += config['num_output']
+
+#   def build_aftermodel(self, after_config):
+#     self.after_model = nn.Sequential(
+#                         nn.Linear(self.total_output, after_config['num_hidden']),
+#                         nn.ReLU(),
+#                         nn.Linear(after_config['num_hidden'], 1)
+#                         )
+
+#   def init_parameters(self):
+#     for name, embedding in self.embedding_dict.iteritems():
+#       for p in embedding.parameters():
+#         if p.ndimension()  < 2:
+#           torch.nn.init.constant(p, 0)
+#         else:
+#           torch.nn.init.xavier_uniform(p)
+
+#     for p in self.after_model.parameters():
+#       if p.ndimension()  < 2:
+#         torch.nn.init.constant(p, 0)
+#       else:
+#         torch.nn.init.xavier_uniform(p)
+
+#   def get_all_parameters(self):
+#     p_list = list()
+#     for p in self.after_model.parameters():
+#       p_list.append(p)
+#     for name, embedding in self.embedding_dict.iteritems():
+#       for p in embedding.parameters():
+#         p_list.append(p)
+#     return p_list
+
+#   def forward(self, x_list):
+#     num_data = len(x_list)
+#     embedding_name_list = list(self.embedding_dict.keys())
+#     embedded_list = list()
+#     for i in range(num_data):
+#       x = x_list[i]
+#       embedding_name = embedding_name_list[i]
+#       embedding = self.embedding_dict[embedding_name]
+#       embeded_x = embedding(x)
+#       if len(embeded_x.size()) < 3:
+#         orig_size = embeded_x.size()
+#         embeded_x = embeded_x.unsqueeze(1).expand(orig_size[0], self.V, orig_size[1])
+#       embedded_list.append(embeded_x)
+#     embedded_all = torch.cat(embedded_list, dim=2).view(-1, self.total_output)
+#     return self.after_model(embedded_all).view(-1, self.V)
+#     
